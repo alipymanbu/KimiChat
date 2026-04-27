@@ -35,8 +35,6 @@ program
     const config = { ...parentOpts, ...options };
     
     try {
-        await client.startNewChat(config.model);
-        
         const stream = client.sendMessage(prompt, config);
         
         let isThinking = false;
@@ -70,11 +68,11 @@ program
     const config = { ...parentOpts, ...options };
     
     try {
-        console.log("Iniciando conexión con Kimi...");
-        await client.startNewChat(config.model);
-        console.log(`¡Conectado! (Chat ID: ${client.chatId})`);
-        console.log(`Opciones activas: Search=${config.search}, DeepThink=${config.deepThink}\n`);
+        console.log("Iniciando chat con Kimi...");
+        console.log(`Opciones activas: Search=${config.search}, DeepThink=${config.deepThink}`);
         console.log("Escribí 'exit' o 'quit' para salir.\n");
+
+        let connected = false;
 
         while (true) {
             const answer = await input({ message: 'Tú: ' });
@@ -106,6 +104,11 @@ program
             }
             if (isThinking) process.stdout.write('\x1b[0m'); // Ensure color resets
             console.log('\n');
+
+            if (!connected && client.chatId) {
+                console.log(`\x1b[32m¡Conectado! (Chat ID: ${client.chatId})\x1b[0m\n`);
+                connected = true;
+            }
         }
     } catch (error) {
         console.error("\nError:", error.message);

@@ -86,9 +86,21 @@ node src/cli.js ask "¿Qué clima hace hoy en Buenos Aires?" --search
 
 ### Manejo de Estado (Historial)
 
-A diferencia de muchos bots que guardan todo el historial en un JSON gigante, este CLI utiliza la infraestructura nativa de Kimi. Al iniciar un nuevo chat (`startNewChat`), obtenemos un `chatId`. 
+A diferencia de muchos bots que guardan todo el historial en un JSON gigante, este CLI utiliza la infraestructura nativa de Kimi. Al enviar el primer mensaje, la API crea automáticamente una conversación y devuelve un `chatId` dinámicamente (sin necesidad de un paso de inicialización previo).
 
 Con cada respuesta, el servidor devuelve un `lastMessageId`. El CLI almacena en memoria este ID y se lo envía a Kimi como `parent_id` en el siguiente turno. De esta forma, Kimi reconstruye todo el contexto internamente sin que tu máquina tenga que subir megabytes de texto.
+
+### Protocolo de Streaming
+
+El CLI parsea el protocolo `application/connect+json` de Kimi, que usa frames binarios de 5 bytes de header (1 byte de flag + 4 bytes de longitud) seguidos del JSON payload. Los chunks de red se acumulan en un array y se concatenan solo al momento de extraer frames, minimizando la presión sobre el garbage collector.
+
+### Estructura del Proyecto
+
+```
+src/
+├── client.js   # Cliente HTTP. Maneja auth, encoding y parsing del stream.
+└── cli.js      # Interfaz de terminal. Comandos ask/chat con colores ANSI.
+```
 
 ---
 

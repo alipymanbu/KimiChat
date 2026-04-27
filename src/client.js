@@ -41,52 +41,16 @@ class KimiClient {
     }
 
     /**
-     * Initializes a new chat session.
-     * @param {string} model 
-     * @returns {Promise<void>}
+     * Helper to make the HTTP POST request to the ChatService.
+     * @param {Buffer} postData 
+     * @returns {Promise<import('http').IncomingMessage>}
      */
-    startNewChat(model = "SCENARIO_K2D5") {
+    _makeRequest(postData) {
         return new Promise((resolve, reject) => {
-            const payload = {
-                "scenario": model,
-                "tools": [{"type": "TOOL_TYPE_SEARCH", "search": {}}],
-                "message": {
-                    "role": "user",
-                    "blocks": [{"message_id": "", "text": {"content": "Hello"}}],
-                    "scenario": model
-                },
-                "options": {"thinking": false}
-            };
-
-            const postData = this._connectEncode(payload);
             const req = https.request("https://www.kimi.com/apiv2/kimi.gateway.chat.v1.ChatService/Chat", {
                 method: "POST",
                 headers: this._getHeaders()
-            }, (res) => {
-                let buffer = Buffer.alloc(0);
-                
-                res.on("data", (chunk) => {
-                    buffer = Buffer.concat([buffer, chunk]);
-                    while (buffer.length >= 5) {
-                        const length = buffer.readUInt32BE(1);
-                        if (buffer.length < 5 + length) break;
-                        
-                        const frame = buffer.subarray(5, 5 + length);
-                        buffer = buffer.subarray(5 + length);
-                        
-                        try {
-                            const data = JSON.parse(frame.toString('utf-8'));
-                            if (data.chat && data.chat.id) this.chatId = data.chat.id;
-                            if (data.message && data.message.id) this.lastMessageId = data.message.id;
-                        } catch (e) {}
-                    }
-                });
-
-                res.on("end", () => {
-                    if (this.chatId) resolve();
-                    else reject(new Error("No chat ID returned"));
-                });
-            });
+            }, resolve);
             
             req.on("error", reject);
             req.write(postData);
@@ -101,8 +65,6 @@ class KimiClient {
      * @returns {AsyncGenerator<string, void, unknown>}
      */
     async *sendMessage(prompt, options = {}) {
-        if (!this.chatId) throw new Error("Chat not initialized. Call startNewChat() first.");
-
         const { 
             model = "SCENARIO_K2D5", 
             deepThink = false, 
@@ -110,7 +72,6 @@ class KimiClient {
         } = options;
 
         const payload = {
-            "chat_id": this.chatId,
             "scenario": model,
             "tools": [],
             "message": {
@@ -124,31 +85,29 @@ class KimiClient {
             "options": { "thinking": deepThink === true }
         };
 
+        if (this.chatId) {
+            payload.chat_id = this.chatId;
+        }
+
         if (search === true) {
             payload.tools.push({ "type": "TOOL_TYPE_SEARCH", "search": {} });
         }
 
         const postData = this._connectEncode(payload);
-
-        const response = await new Promise((resolve, reject) => {
-            const req = https.request("https://www.kimi.com/apiv2/kimi.gateway.chat.v1.ChatService/Chat", {
-                method: "POST",
-                headers: this._getHeaders()
-            }, (res) => resolve(res));
-            
-            req.on("error", reject);
-            req.write(postData);
-            req.end();
-        });
+        const response = await this._makeRequest(postData);
 
         if (response.statusCode !== 200) {
             throw new Error(`Kimi API returned status code ${response.statusCode}`);
         }
 
-        let buffer = Buffer.alloc(0);
+        let chunks = [];
+        let bufferLength = 0;
 
         for await (const chunk of response) {
-            buffer = Buffer.concat([buffer, chunk]);
+            chunks.push(chunk);
+            bufferLength += chunk.length;
+
+            let buffer = Buffer.concat(chunks, bufferLength);
 
             while (buffer.length >= 5) {
                 const length = buffer.readUInt32BE(1);
@@ -156,10 +115,18 @@ class KimiClient {
 
                 const frame = buffer.subarray(5, 5 + length);
                 buffer = buffer.subarray(5 + length);
+                
+                // Update tracking for remaining buffer
+                chunks = [buffer];
+                bufferLength = buffer.length;
 
                 try {
                     const data = JSON.parse(frame.toString('utf-8'));
                     
+                    if (data.chat && data.chat.id) {
+                        this.chatId = data.chat.id;
+                    }
+
                     if (data.message && data.message.id) {
                         this.lastMessageId = data.message.id;
                     }

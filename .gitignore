@@ -16,3 +16,16 @@ frames2.log
 # Archivos de sistema operativo
 .DS_Store
 Thumbs.db
+
+# Python y Entornos
+venv/
+.venv/
+__pycache__/
+
+# IDE y Agentes
+.vscode/
+.atl/
+
+# Tests
+test/
+tests/
