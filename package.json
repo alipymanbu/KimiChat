@@ -1,0 +1,21 @@
+{
+  "name": "kimichat",
+  "version": "1.0.0",
+  "description": "[![Node.js](https://img.shields.io/badge/Node.js-v16+-green.svg)](https://nodejs.org/)\r [![API](https://img.shields.io/badge/API-OpenAI%20Compatible-orange.svg)]()",
+  "main": "main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@inquirer/prompts": "^8.4.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.4.2"
+  }
+}
